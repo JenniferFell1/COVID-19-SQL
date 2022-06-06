@@ -12,6 +12,7 @@ ORDER BY 1, 2;
 
 --Looking for Total Case vs Total Deaths (percentage of deaths for reported)
 --Likelihood of Deaths if you contract COVID by country
+
 SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
 FROM `jennyai.PortfolioProject.CovidDeaths`
 ORDER BY 1,2; 
