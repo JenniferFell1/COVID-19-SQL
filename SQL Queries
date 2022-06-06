@@ -1,0 +1,183 @@
+--COVID Project Queries
+
+SELECT *
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null
+order by 1,2
+
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM `jennyai.PortfolioProject.CovidDeaths`
+ORDER BY 1, 2;
+
+--Looking for Total Case vs Total Deaths (percentage of deaths for reported)
+--Likelihood of Deaths if you contract COVID by country
+SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
+FROM `jennyai.PortfolioProject.CovidDeaths`
+ORDER BY 1,2; 
+
+SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE location like '%States%'
+ORDER BY 1,2; 
+
+--Looking at Total Cases vs Population
+--Shows what percentage of population contracted COVID
+
+SELECT location, date, total_cases, population, (total_cases/population)*100 AS PercentPopulationInfected
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE location like '%States%'
+ORDER BY 1,2; 
+
+--Looking at Countries with highest infection rate vs population
+
+SELECT location, population, MAX(total_cases) AS HighestInfectionCount, MAX((total_cases/population))*100 AS PercentPopulationInfected
+FROM `jennyai.PortfolioProject.CovidDeaths`
+--WHERE location like '%States%'
+GROUP BY location, population
+ORDER BY PercentPopulationInfected DESC;
+
+--Showing Countries with highest death count per population
+
+SELECT location, MAX(cast(total_deaths AS INT)) AS TotalDeathCount
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null
+GROUP BY location
+ORDER BY TotalDeathCount DESC;
+
+--BREAKING THINGS DOWN BY CONTINENT
+--Showing the continents with the highest death count per population
+
+SELECT continent, MAX(cast(total_deaths AS INT)) AS TotalDeathCount
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null
+GROUP BY continent
+ORDER BY TotalDeathCount DESC;
+
+--Looking for Total Case by continent
+
+SELECT continent,MAX(total_cases)
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null 
+GROUP BY continent;
+
+--Looking for Total Case vs Total Deaths (percentage of deaths for reported) by continent
+--Likelihood of Deaths if you contract COVID by continent
+SELECT continent, MAX(total_cases) AS Total_Cases, MAX(total_deaths) AS Total_Deaths,(MAX(total_deaths)/MAX(total_cases))*100 AS DeathPercentage
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null
+GROUP BY continent;
+
+--GLOBAL NUMBERS
+--total world cases by date
+
+SELECT date, SUM(new_cases)--total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null
+GROUP BY date
+ORDER BY 1,2; 
+
+--SUM of global cases/deaths by date
+--sum(new_cases) adds up to total cases globally
+--new_deaths column VARCHAR datatype, CAST to int
+SELECT date, SUM(new_cases), SUM(CAST (new_deaths AS INT))
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null
+GROUP BY date
+ORDER BY 1,2; 
+
+--Global Death percentage by date
+SELECT date, SUM(new_cases) AS total_cases, SUM(CAST (new_deaths AS INT)) AS total_deaths, SUM(cast(new_deaths as int))/SUM(new_cases)*100 as DeathPercentage
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null
+GROUP BY date
+ORDER BY 1,2; 
+
+--Total cases/deaths/deathpercentage Globally as of 6/4/22
+SELECT SUM(new_cases) AS total_cases, SUM(CAST (new_deaths AS INT)) AS total_deaths, SUM(cast(new_deaths as int))/SUM(new_cases)*100 as DeathPercentage
+FROM `jennyai.PortfolioProject.CovidDeaths`
+WHERE continent is not null
+ORDER BY 1,2;
+
+--Joining CovidDeaths and CovidVaccinations tables on location and date columns
+SELECT* 
+FROM `jennyai.PortfolioProject.CovidDeaths` AS dea
+Join `jennyai.PortfolioProject.CovidVaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date;
+
+--Looking at Total Population vs vaccinations
+SELECT dea.continent, dea.location,dea.date, dea.population, vac.new_vaccinations
+FROM `jennyai.PortfolioProject.CovidDeaths` AS dea
+Join `jennyai.PortfolioProject.CovidVaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent is not null
+ORDER BY 2,3;
+
+--Rolling count of vaccinations per day. Partitioned the SUM by location
+SELECT dea.continent, dea.location,dea.date, dea.population, vac.new_vaccinations,SUM(CAST(vac.new_vaccinations AS INT)) OVER (Partition BY dea.location ORDER BY dea.location, dea.date) AS RollingCountVaccinated
+FROM `jennyai.PortfolioProject.CovidDeaths` AS dea
+Join `jennyai.PortfolioProject.CovidVaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent is not null
+ORDER BY 2,3;
+
+--Total Population VS Vaccinations
+--want to use max # of rollingcountvaccinated / population to see the percentage of people vaccinated per country
+--need to create CTE or temp table
+
+SELECT dea.continent, dea.location,dea.date, dea.population, vac.new_vaccinations,SUM(CAST(vac.new_vaccinations AS INT)) OVER (Partition BY dea.location ORDER BY dea.location, dea.date) AS RollingCountVaccinated
+FROM `jennyai.PortfolioProject.CovidDeaths` AS dea
+Join `jennyai.PortfolioProject.CovidVaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent is not null
+ORDER BY 2,3;
+
+--USE CTE(EXAMPLE)
+
+--The WITH statement is only part of a query. It needs to followed by another statement, usually a SELECT.
+--Ex. WITH longest_used_bike AS (SELECT Bikeid, SUM(duration_minutes) AS trip_duration)
+--FROM 'bigquery-public-data.austin_bikeshare.bikeshare_trips'
+--GROUP BY Trip_duration DESC
+--LIMIT 1)
+--SELECT * FROM longest_used_bike;
+
+
+WITH PopvsVac 
+AS
+(
+SELECT dea.continent, dea.location,dea.date, dea.population, vac.new_vaccinations,SUM(CAST(vac.new_vaccinations AS INT)) OVER (Partition BY dea.location ORDER BY dea.location, dea.date) AS RollingCountVaccinated
+FROM `jennyai.PortfolioProject.CovidDeaths` AS dea
+Join `jennyai.PortfolioProject.CovidVaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent is not null
+--ORDER BY 2,3
+)
+Select *,(RollingCountVaccinated/Population)*100
+FROM PopvsVac;
+
+--Create TEMP Table
+
+CREATE TEMP TABLE PercentPopulationVaccinated
+(Continent STRING (225),
+Location STRING (225),
+Date datetime,
+Population numeric,
+New_vaccinations numeric,
+RollingCountVaccinated numeric
+)
+AS
+SELECT dea.continent, dea.location,dea.date, dea.population, vac.new_vaccinations,SUM(CAST(vac.new_vaccinations AS INT)) OVER (Partition BY dea.location ORDER BY dea.location, dea.date) AS RollingCountVaccinated
+FROM `jennyai.PortfolioProject.CovidDeaths` AS dea
+Join `jennyai.PortfolioProject.CovidVaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent is not null
+ORDER BY 2,3;
+
+Select *,(RollingCountVaccinated/Population)*100
+FROM PercentPopulationVaccinated;
